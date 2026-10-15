@@ -1,20 +1,19 @@
 # TRP3 Directory Keeper
 
-A companion addon for [Total RP 3](https://github.com/Total-RP/Total-RP-3) that keeps **every --SOUL--, khem, roleplayer profile you have ever met** and lets you **share whole directories** with other players.
+A companion addon for [Total RP 3](https://github.com/Total-RP/Total-RP-3) that keeps **every --SOUL--, khem, roleplayer profile you have ever met** and lets you **share whole directories** with other players, for example if their profile was wiped.
 
-Total RP 3 stores everyone you meet in its *Directory*. With purge off, TRP3 keeps that directory in one saved-variables file. That file stops loading at roughly 16,000 profiles, because of a hard limit in the game's Lua engine. The game then shows an empty directory and logs `constant table overflow`. Directory Keeper keeps a separate, high-capacity archive next to TRP3's own data, so the directory can keep growing without hitting that limit.
+Total RP 3 stores everyone you meet in its *Directory*. Normally it clears every 30 days and you loose all the profiles, you do not see their names when scanning the map etc. TRP3 keeps that directory in one saved-variables file. If purges are turned off, that file stops loading at roughly 16,000 profiles, because of a hard limit in the game's Lua engine. The game then shows an empty directory and logs `constant table overflow`. Directory Keeper keeps a separate, high-capacity archive next to TRP3's own data, so the directory can keep growing without hitting that limit, while TRP3 does its own regular purges.
 
 > Directory Keeper is an unofficial addon. It is not made or supported by the Total RP 3 team. Please do not report Directory Keeper problems to them.
 
 ## Features
 
 - **Nearly unlimited directory.** Everyone you have ever met is kept in one archive file, stored compactly enough that it never reaches the game's limit. At login they all appear in TRP3's Directory, whatever TRP3's purge setting is.
-- **TRP3's own file stays untouched in format.** Total RP 3 saves exactly what it would save without this addon. If you ever remove Directory Keeper, Total RP 3 keeps working normally with its own data.
 - **Always up to date.** At every logout, the archive takes the latest version of everyone you met that session.
 - **Relations and notes are safe.** Profiles you have relations or notes on always stay in TRP3's own file, as with TRP3's own purge.
 - **Export and import.** Two buttons in the Directory let you save your directory to a file and add someone else's. Imports only add player profiles you have not met yet; your existing entries are never changed.
-- **Near-limit warning.** A chat warning tells you when TRP3's own file approaches the limit. (Might be removed, not necessary with current approach)
 - **No settings changed.** Directory Keeper never changes TRP3's settings, including its purge setting.
+- **TRP3's own file stays untouched in format.** Total RP 3 saves exactly what it would save without this addon. If you ever remove Directory Keeper, Total RP 3 keeps working normally with its own data.
 
 ## Requirements
 
@@ -40,12 +39,11 @@ Play as usual. Open the Directory (Total RP 3 → Directory → Characters) to s
 | `/tdk export` | Same as the Export button |
 | `/tdk import` | Same as the Import button |
 
-The **Import** (left wrench) and **Export** (right wrench) buttons are next to the search button at the bottom of the Directory's Characters tab.
-
 ### Sharing a directory
 
-1. **Exporting:** click **Export**, confirm, then reload. Send the file `World of Warcraft\_retail_\WTF\Account\<YOUR ACCOUNT FOLDER>\SavedVariables\TRP3_DirectoryKeeper_Exchange.lua`, zipped; a 15,000-profile export is about 15 MB zipped. The game shows this path, and how to find your World of Warcraft folder, after each export.
-2. **Importing:** with the game closed (or at character selection), put the received file in the same place in your own `SavedVariables` folder. Log in, open the Directory and click **Import**. The game reloads after the import.
+The **Import** (left wrench) and **Export** (right wrench) buttons are next to the search button at the bottom of the Directory's Characters tab.
+Importing: with the game closed (or at character selection), put the received file in the same directory as the export: Warcraft\_retail_\WTF\Account\<YOUR ACCOUNT FOLDER>\SavedVariables\TRP3_DirectoryKeeper_Exchange.lua - Log in, open the characters tab and click Import. The game reloads after the import.
+Exporting: click Export, confirm, then reload. The file is stored at: Warcraft\_retail_\WTF\Account\<YOUR ACCOUNT FOLDER>\SavedVariables\TRP3_DirectoryKeeper_Exchange.lua - The game shows this path, and how to find your World of Warcraft folder, after each export/import.
 
 Both players need the same Total RP 3 version. See [docs/SHARING.md](docs/SHARING.md) for what is included, what is skipped, and how received files are checked.
 
