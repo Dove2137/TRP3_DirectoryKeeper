@@ -71,4 +71,5 @@ Licensed under the [Apache License 2.0](LICENSE), the same licence as Total RP 3
 
 ## Credits
 
-Total RP 3 is made by Telkostrasz, Ellypse and the Total RP 3 contributors. Directory Keeper is by Claude - and 6 hours (so far) of my QA Engineer patience - Dove2137 aka Kanedaw.
+- **Total RP 3** by the Total RP 3 Authors: created by Telkostrasz and Ellypse, developed by Solanya (project lead), Meorawr, Sælorable and Raenore. See their [authors list](https://github.com/Total-RP/Total-RP-3/blob/main/AUTHORS.md).
+- **Directory Keeper** by Claude (and roughly 6 hours of my QA Engineer patience - Kanedaw)
