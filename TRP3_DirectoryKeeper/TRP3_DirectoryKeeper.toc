@@ -1,0 +1,19 @@
+## Interface: 120105
+## Title: TRP3 Directory Keeper
+## Notes: Keeps every Total RP 3 directory profile you have ever met in a high-capacity archive, and exports or imports whole directories. Works alongside Total RP 3 without modifying its files.
+## Author: Kanedaw
+## Version: 1.0.0
+## IconTexture: 132918
+## X-License: Apache-2.0
+## Group: TRP3_DirectoryKeeper
+## Category-enUS: Roleplay
+## RequiredDeps: totalRP3, totalRP3_Data, TRP3_DirectoryKeeper_Archive
+## SavedVariables: TRP3DK_State
+
+Init.lua
+Serializer.lua
+Storage.lua
+Archive.lua
+Exchange.lua
+UI.lua
+Main.lua
