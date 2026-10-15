@@ -23,7 +23,7 @@ Total RP 3 stores everyone you meet in its *Directory*. With purge off, TRP3 kee
 
 ## Installation
 
-1. Copy all three folders into `World of Warcraft\_retail_\Interface\AddOns\`:
+1. Download `TRP3_DirectoryKeeper-<version>.zip` from the [Releases](https://github.com/Dove2137/TRP3_DirectoryKeeper/releases) page (not the green "Code" button, which downloads the source with tests and docs). Extract it into `World of Warcraft\_retail_\Interface\AddOns\`, so you get these three folders:
    - `TRP3_DirectoryKeeper`
    - `TRP3_DirectoryKeeper_Archive`
    - `TRP3_DirectoryKeeper_Exchange`

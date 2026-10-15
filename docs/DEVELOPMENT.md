@@ -15,6 +15,7 @@ TRP3_DirectoryKeeper_Archive/     data-only addon holding the archive file (TOC 
 TRP3_DirectoryKeeper_Exchange/    load-on-demand data-only addon, the exchange file (TOC only)
 tests/                            test harness, unit tests, session simulation
 tools/link-addons.ps1             links the addon folders into the game's AddOns folder
+tools/package.ps1                 builds the installable zip of a tagged version into dist/
 docs/                             documentation
 ```
 
@@ -67,4 +68,5 @@ The session simulation copies a real pair of Total RP 3 saved-variables files in
 3. Check that Total RP 3 still has `TRP3_RegisterListCharactFilter`, `TRP3_RegisterListCharactFilterButton`, the `TRP3_IconButton` template, `TRP3_API.register.sanitizeProfile` and `TRP3_API.ui.tooltip.setTooltipForSameFrame`.
 4. Run both test scripts.
 5. Add a `CHANGELOG.md` entry.
-6. Package the three addon folders, without `tests`, `tools` and `docs`, into one zip.
+6. Tag the release (`v<version>`) and build the zip with `powershell -ExecutionPolicy Bypass -File tools\package.ps1 -Version <version>`. It packs the three addon folders from the tag, with the licence, into `dist\`.
+7. Create the GitHub release for the tag and attach the zip.
