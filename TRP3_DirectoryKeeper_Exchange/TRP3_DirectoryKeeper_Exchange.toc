@@ -1,0 +1,11 @@
+## Interface: 120105
+## Title: TRP3 Directory Keeper: Exchange
+## Notes: Holds a directory export or a received directory for import. Loaded only when you export or import. Contains no code.
+## Author: Kanedaw
+## Version: 1.0.0
+## IconTexture: 132918
+## X-License: Apache-2.0
+## Group: TRP3_DirectoryKeeper
+## Category-enUS: Roleplay
+## LoadOnDemand: 1
+## SavedVariables: TRP3DK_Exchange

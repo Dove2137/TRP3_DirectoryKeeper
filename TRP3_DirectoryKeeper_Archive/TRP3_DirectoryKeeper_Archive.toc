@@ -1,0 +1,10 @@
+## Interface: 120105
+## Title: TRP3 Directory Keeper: Archive
+## Notes: The Directory Keeper archive: every directory profile you have ever met, in one file. Contains no code; keep it enabled together with TRP3 Directory Keeper.
+## Author: Kanedaw
+## Version: 1.0.0
+## IconTexture: 132918
+## X-License: Apache-2.0
+## Group: TRP3_DirectoryKeeper
+## Category-enUS: Roleplay
+## SavedVariables: TRP3DK_Archive
