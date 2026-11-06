@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 (2026-11-06)
+
+- **WoW Forever support.** The addon now loads on WoW Forever as well as Retail. Each game client keeps its own archive, and the export and import instructions in game show the right folder.
+- **Works with Total RP 3 3.5.4.** Its data format has not changed, so existing archives carry on as they are.
+- **Negative zero fix.** A `-0` received from another player could turn every `0` in the same archive block into `-0` when the block was read back. This is the problem Total RP 3 3.5.4 fixed for its own files. New blocks never contain `-0`, and older blocks and exports are read correctly.
+- **Secret values.** A secret guild name no longer stops the archive from being saved at logout.
+
 ## 1.0.0 (2026-10-15)
 
 First release.

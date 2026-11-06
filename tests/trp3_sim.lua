@@ -1,4 +1,4 @@
--- What Total RP 3 (3.4.3 to 3.5.1) does to its directory at login, reproduced from
+-- What Total RP 3 (3.4.3 to 3.5.4) does to its directory at login, reproduced from
 -- Modules/Register/Characters/RegisterMain.lua (cleanupPlayerRelations, cleanupProfiles,
 -- cleanupCharacters, cleanupCompanions). Used by the session simulation to check that the
 -- Directory Keeper and TRP3's own cleanup work together.
@@ -92,6 +92,7 @@ function Sim.Login(env, purgeSeconds, now)
 
 	env.TRP3_Flyway = env.TRP3_Flyway or {}
 	env.TRP3_Flyway.currentBuild = 25
+	env.TRP3_AbsolutelyZero = 0
 end
 
 return Sim

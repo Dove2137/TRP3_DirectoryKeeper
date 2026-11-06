@@ -35,6 +35,7 @@ local function SerializeNumber(n)
 	if n ~= n then return "(0/0)" end
 	if n == HUGE then return "(1/0)" end
 	if n == -HUGE then return "(-1/0)" end
+	if n == 0 then return "0" end -- never -0: one -0 can turn every 0 in a block negative (see Storage.lua)
 	return format("%.17g", n)
 end
 
@@ -200,6 +201,7 @@ function Serializer.Parse(text)
 			local number = tonumber(sub(text, s, e))
 			if number then
 				pos = e + 1
+				if number == 0 then return 0 end -- exports from version 1.0.0 can hold -0
 				return number
 			end
 		end

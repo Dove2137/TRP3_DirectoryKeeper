@@ -29,6 +29,12 @@ The game loads the addon straight from the repository through directory junction
 powershell -ExecutionPolicy Bypass -File tools\link-addons.ps1
 ```
 
+That links Retail. For WoW Forever, point it at that client's AddOns folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\link-addons.ps1 -AddOns "C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns"
+```
+
 Restart the game after adding new addon folders. After code changes, `/reload` is enough. TOC changes need a restart.
 
 ## Tests
@@ -45,7 +51,8 @@ Unit tests on small hand-made directories:
 - serializer round-trips, including tricky text;
 - the parser refusing code and damaged data;
 - merge, update and trim rules, including relation protection and deletions;
-- import planning: add-only, ignore list, ID checks, date capping.
+- import planning: add-only, ignore list, ID checks, date capping;
+- negative zero, secret values and the game client checks.
 
 ```sh
 lua5.1 tests/simulate.lua <totalRP3_Data.lua> <totalRP3.lua> <work folder>
@@ -57,13 +64,15 @@ The session simulation copies a real pair of Total RP 3 saved-variables files in
 - an export;
 - an import into a second, small directory.
 
+It works on any directory size, including the small, recent directory of a new game client.
+
 `tests/trp3_sim.lua` reproduces Total RP 3's own login cleanup. After every session, the files are written the way the game writes them and read back with Lua's own loader, so a file over the constant limit fails there just as in game.
 
 **Always run the simulation on copies.** Never point it at your live `WTF` folder.
 
 ## Release checklist
 
-1. Update `## Version` in all three TOC files, and `## Interface` for a new game patch.
+1. Update `## Version` in all three TOC files, and `## Interface` for a new game patch (each TOC lists Retail and WoW Forever).
 2. If Total RP 3 changed its data format (`SCHEMA_VERSION` in `totalRP3/Core/Flyway.lua`), check that the archive's contents still match. Directory Keeper pauses on a format change until it is updated.
 3. Check that Total RP 3 still has `TRP3_RegisterListCharactFilter`, `TRP3_RegisterListCharactFilterButton`, the `TRP3_IconButton` template, `TRP3_API.register.sanitizeProfile` and `TRP3_API.ui.tooltip.setTooltipForSameFrame`.
 4. Run both test scripts.

@@ -1,8 +1,8 @@
-## Interface: 120105
+## Interface: 120105, 16001
 ## Title: TRP3 Directory Keeper
 ## Notes: Keeps every Total RP 3 directory profile you have ever met in a high-capacity archive, and exports or imports whole directories. Works alongside Total RP 3 without modifying its files.
 ## Author: Kanedaw
-## Version: 1.0.0
+## Version: 1.1.0
 ## IconTexture: 132918
 ## X-License: Apache-2.0
 ## Group: TRP3_DirectoryKeeper

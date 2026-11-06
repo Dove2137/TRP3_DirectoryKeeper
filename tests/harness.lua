@@ -54,7 +54,7 @@ function H.NewEnvironment()
 	env.ReloadUI = function() env.__reloadRequested = true end
 	env.SlashCmdList = {}
 	env.C_AddOns = {
-		GetAddOnMetadata = function(addon, field) return field == "Version" and (addon == "totalRP3" and "3.5.1" or "1.0.0") or nil end,
+		GetAddOnMetadata = function(addon, field) return field == "Version" and (addon == "totalRP3" and "3.5.4" or "1.0.0") or nil end,
 		IsAddOnLoaded = function(addon) return env.__loaded[addon] == true end,
 		LoadAddOn = function(addon)
 			env.__loaded[addon] = true

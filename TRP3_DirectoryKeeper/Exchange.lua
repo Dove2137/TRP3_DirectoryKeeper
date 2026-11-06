@@ -457,7 +457,9 @@ end
 
 -- The game does not tell addons where it is installed or what the account folder is called, so the
 -- path is shown with a placeholder (red) and the file name (green), split over lines to fit the popup.
-local FILE_PATH = "World of Warcraft\\_retail_\\WTF\\Account\\\n"
+-- Each game client has its own folder. WOW_PROJECT_CAMELOT only exists on the WoW Forever client.
+Exchange.GAME_FOLDER = WOW_PROJECT_CAMELOT and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT and "_forever_" or "_retail_"
+local FILE_PATH = "World of Warcraft\\" .. Exchange.GAME_FOLDER .. "\\WTF\\Account\\\n"
 	.. "|cffff2020<YOUR ACCOUNT FOLDER>|r\\SavedVariables\\\n"
 	.. "|cff20ff20TRP3_DirectoryKeeper_Exchange.lua|r"
 local FOLDER_HINT = "|cff66ccffTo open your World of Warcraft folder: in the Battle.net app, select World of Warcraft, "

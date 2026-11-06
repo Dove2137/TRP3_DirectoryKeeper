@@ -29,6 +29,12 @@ Directory Keeper keeps its archive in its own file, from the data-only addon `TR
 
 The ignore list (`TRP3_Register.blockList`) is never archived.
 
+Retail and WoW Forever each have their own `WTF` folder, so each game client keeps its own archive.
+
+### Zeros are always saved as `0`
+
+Lua 5.1 keeps one constant per function for `0` and `-0`, so the first zero in a chunk decides the sign of every zero in it. A single `-0` received from another player could otherwise turn every `0` in its block into `-0`. Total RP 3 3.5.4 guards its own files against this by saving `TRP3_AbsolutelyZero = 0` first, but each archive block is compiled on its own, so that guard does not reach them. Directory Keeper therefore always writes zeros as `0`, and reads blocks saved by version 1.0.0 with a positive zero in front.
+
 ### Writing only what changed
 
 Rewriting every block at every logout would take over a second for a large archive. So Directory Keeper notes a small *fingerprint* of every entry at login: the last-seen date, version numbers, link count and read flag of profiles; the profile, guild and client of characters; the version numbers and links of companions. At logout only the blocks holding new, deleted or changed entries are written again. All other blocks are saved exactly as they were read. A typical session rewrites a handful of blocks; a session without changes rewrites none.
@@ -82,6 +88,7 @@ At every login, TRP3 deletes relations that point to profiles missing from its d
 | Total RP 3 updated its data format (`TRP3_Flyway.currentBuild` differs from the archive's) | Directory Keeper pauses: nothing is added, and the archive is not rewritten. `/tdk` shows the reason. |
 | The archive file was written by a newer Directory Keeper | Directory Keeper pauses and leaves the file alone. |
 | An archive block can't be read | It is reported in chat and kept in the file untouched, never thrown away. |
+| An entry holds a secret game value (such as a guild name read during combat restrictions) | The value is left out of the archive; the entry and everything else are saved. |
 | Adding the archive fails at login | The error is shown. At logout everything that was added is still taken back out of TRP3's file, and the archive file is not rewritten. |
 | Updating or writing the archive fails at logout | The archive file is left as loaded, so the previous archive is saved unchanged. TRP3's file is still trimmed. |
 | TRP3's own file overflows (purge off, too many profiles met) | The game can't load it, so TRP3 starts empty. The archive still has everyone and still shows them. |

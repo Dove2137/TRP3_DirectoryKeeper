@@ -224,6 +224,71 @@ local _, newerStore = Storage.Load({ format = 99, profiles = {} })
 Check(newerStore.unknownFormat, "an archive file from a newer version is left alone")
 
 ---------------------------------------------------------------------------
+print("Negative zero")
+---------------------------------------------------------------------------
+
+-- Lua 5.1 keeps one constant per function for 0 and -0, so the first zero in a chunk decides the
+-- sign of them all. tonumber is used here because a -0 literal would do the same to this file.
+local NEGATIVE_ZERO = tonumber("-0")
+local function IsNegativeZero(n) return n == 0 and 1 / n < 0 end
+local function IsPositiveZero(n) return n == 0 and 1 / n > 0 end
+
+local poisoned = assert(loadstring('return{[1]=-0,[2]=0,}'))()
+Check(IsNegativeZero(poisoned[2]), "the problem exists: a -0 turns a later 0 in the same chunk into -0")
+
+Check(IsPositiveZero(Serializer.Parse(Serializer.SerializeBlock({ a = NEGATIVE_ZERO })).a)
+	and not Serializer.SerializeBlock({ a = NEGATIVE_ZERO }):find("-0", 1, true), "-0 is written as 0")
+local parsed = Serializer.Parse('return{["a"]=-0,["b"]=0,["c"]=-2,}')
+Check(IsPositiveZero(parsed.a) and IsPositiveZero(parsed.b) and parsed.c == -2, "an export holding -0 is read as 0")
+
+local OLD_BLOCK = 'return{["P1"]={["RS"]=-0,["V2"]=0,["time"]=5,["DE"]="a]=-0,b",["characteristics"]={["FN"]="Old",},},}'
+local oldArchive = Storage.Load({ format = ns.ARCHIVE_FORMAT, profiles = { OLD_BLOCK }, character = {}, companion = {} })
+local oldProfile = oldArchive.profiles.P1
+Check(IsPositiveZero(oldProfile.RS) and IsPositiveZero(oldProfile.V2), "a block saved with -0 no longer spreads it when read")
+Check(oldProfile.time == 5 and oldProfile.DE == "a]=-0,b", "the rest of that block is read unchanged")
+
+---------------------------------------------------------------------------
+print("Secret values")
+---------------------------------------------------------------------------
+
+-- Stands in for a game secret: reading it as text is an error, as comparing a secret is in game.
+local SECRET = setmetatable({}, { __tostring = function() error("a secret value was read") end })
+local secretEnv = H.NewEnvironment()
+secretEnv.issecretvalue = function(value) return value == SECRET end
+local secretNs = H.LoadAddon(secretEnv, "TRP3_DirectoryKeeper")
+local SecretStorage = secretNs.Storage
+
+local secretBase = Archive.NewDirectory()
+secretBase.profiles.P1 = { characteristics = { FN = "Seen" }, time = OLD, link = { ["Seen-Realm"] = 1 } }
+secretBase.character["Seen-Realm"] = { profileID = "P1", guild = "Plain" }
+local secretFirst = SecretStorage.Save(secretBase, select(2, SecretStorage.Load(nil)),
+	SecretStorage.Snapshot(Archive.NewDirectory()), INFO)
+local secretLoaded, secretStore = SecretStorage.Load(secretFirst)
+local secretSnapshot = SecretStorage.Snapshot(secretLoaded)
+secretLoaded.character["Seen-Realm"].guild = SECRET
+local secretSaved, secretSummary = pcall(SecretStorage.Save, secretLoaded, secretStore, secretSnapshot, INFO)
+Check(secretSaved, "a secret guild name does not stop the archive being saved")
+Check(secretSaved and secretSummary.character ~= nil
+	and SecretStorage.Load(secretSummary).character["Seen-Realm"].profileID == "P1"
+	and SecretStorage.Load(secretSummary).character["Seen-Realm"].guild == nil, "the secret is left out and the character is kept")
+
+---------------------------------------------------------------------------
+print("Game clients")
+---------------------------------------------------------------------------
+
+Check(Exchange.GAME_FOLDER == "_retail_", "Retail uses the _retail_ folder (WOW_PROJECT_CAMELOT does not exist there)")
+local foreverEnv = H.NewEnvironment()
+foreverEnv.WOW_PROJECT_CAMELOT, foreverEnv.WOW_PROJECT_ID = 18, 18
+Check(H.LoadAddon(foreverEnv, "TRP3_DirectoryKeeper").Exchange.GAME_FOLDER == "_forever_", "WoW Forever uses the _forever_ folder")
+
+for _, addon in ipairs({ "TRP3_DirectoryKeeper", "TRP3_DirectoryKeeper_Archive", "TRP3_DirectoryKeeper_Exchange" }) do
+	local toc = assert(io.open(addon .. "/" .. addon .. ".toc", "rb"))
+	local interface = toc:read("*a"):match("## Interface: ([^\r\n]*)")
+	toc:close()
+	Check(interface == "120105, 16001", addon .. " lists the Retail and WoW Forever interface versions")
+end
+
+---------------------------------------------------------------------------
 print("Import planning")
 ---------------------------------------------------------------------------
 
@@ -257,7 +322,7 @@ local theirs = {
 }
 
 local exportJob = coroutine.create(function()
-	return Exchange.BuildExport(theirs, {}, { trp3Version = "3.5.1", schema = 25, now = NOW })
+	return Exchange.BuildExport(theirs, {}, { trp3Version = "3.5.4", schema = 25, now = NOW })
 end)
 local _, export = coroutine.resume(exportJob)
 Check(Exchange.CheckHeader(export, 25, NOW) == true, "export header is accepted")

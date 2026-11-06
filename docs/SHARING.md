@@ -11,7 +11,7 @@ Directory Keeper can save your whole directory to a file, and add the contents o
 
    `World of Warcraft\_retail_\WTF\Account\<YOUR ACCOUNT FOLDER>\SavedVariables\TRP3_DirectoryKeeper_Exchange.lua`
 
-   A 15,000-profile directory gives a file of about 48 MB, or about 15 MB zipped.
+   On WoW Forever the folder is `_forever_` instead of `_retail_`. A 15,000-profile directory gives a file of about 48 MB, or about 15 MB zipped.
 
    The game cannot tell addons where it is installed or what your account folder is called, so the export and import windows show this path with `<YOUR ACCOUNT FOLDER>` as a placeholder. To open your World of Warcraft folder: in the Battle.net app, select World of Warcraft, click the gear icon next to the Play button, then **Show in Explorer**. Most players have exactly one folder inside `WTF\Account`.
 
@@ -31,7 +31,7 @@ An export replaces whatever was in that file before, including a received export
 ## Importing
 
 1. **Close the game**, or go to the character selection screen.
-2. Put the received `TRP3_DirectoryKeeper_Exchange.lua` (unzipped) into your own `World of Warcraft\_retail_\WTF\Account\<YOUR ACCOUNT FOLDER>\SavedVariables\` folder, replacing the file of the same name if there is one.
+2. Put the received `TRP3_DirectoryKeeper_Exchange.lua` (unzipped) into your own `World of Warcraft\_retail_\WTF\Account\<YOUR ACCOUNT FOLDER>\SavedVariables\` folder (`_forever_` on WoW Forever), replacing the file of the same name if there is one.
 3. Log in, open the Directory and click **Import** (the left-pointing wrench), or type `/tdk import`.
 4. Directory Keeper first asks whether you have placed the file, and shows again where it goes. Click **Import**.
 5. Directory Keeper reads the file in the background and shows what it would add and skip. Nothing has changed yet.

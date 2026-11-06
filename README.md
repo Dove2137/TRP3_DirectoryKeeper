@@ -2,7 +2,7 @@
 
 A companion addon for [Total RP 3](https://github.com/Total-RP/Total-RP-3) that keeps **every --SOUL--, khem, roleplayer profile you have ever met** and lets you **share whole directories** with other players, for example if their profile was wiped.
 
-Total RP 3 stores everyone you meet in its *Directory*. Normally it clears every 30 days and you loose all the profiles, you do not see their names when scanning the map etc. TRP3 keeps that directory in one saved-variables file. If purges are turned off, that file stops loading at roughly 16,000 profiles, because of a hard limit in the game's Lua engine. The game then shows an empty directory and logs `constant table overflow`. Directory Keeper keeps a separate, high-capacity archive next to TRP3's own data, so the directory can keep growing without hitting that limit, while TRP3 does its own regular purges.
+Total RP 3 stores everyone you meet in its *Directory*. By default it removes profiles you have not crossed for 10 days (the delay is configurable), so you lose them and no longer see their names when scanning the map. TRP3 keeps that directory in one saved-variables file. If purges are turned off, that file stops loading at roughly 16,000 profiles, because of a hard limit in the game's Lua engine. The game then shows an empty directory and logs `constant table overflow`. Directory Keeper keeps a separate, high-capacity archive next to TRP3's own data, so the directory can keep growing without hitting that limit, while TRP3 does its own regular purges.
 
 > Directory Keeper is an unofficial addon. It is not made or supported by the Total RP 3 team. Please do not report Directory Keeper problems to them.
 
@@ -17,12 +17,12 @@ Total RP 3 stores everyone you meet in its *Directory*. Normally it clears every
 
 ## Requirements
 
-- World of Warcraft Retail, patch 12.1.5 (Interface 120105)
-- Total RP 3 3.5.1
+- World of Warcraft Retail, patch 12.1.5 (Interface 120105), or WoW Forever, patch 1.60.1 (Interface 16001)
+- Total RP 3 3.5.4
 
 ## Installation
 
-1. Download `TRP3_DirectoryKeeper-<version>.zip` from the [Releases](https://github.com/Dove2137/TRP3_DirectoryKeeper/releases) page (not the green "Code" button, which downloads the source with tests and docs). Extract it into `World of Warcraft\_retail_\Interface\AddOns\`, so you get these three folders:
+1. Download `TRP3_DirectoryKeeper-<version>.zip` from the [Releases](https://github.com/Dove2137/TRP3_DirectoryKeeper/releases) page (not the green "Code" button, which downloads the source with tests and docs). Extract it into `World of Warcraft\_retail_\Interface\AddOns\` (`_forever_` instead of `_retail_` on WoW Forever), so you get these three folders:
    - `TRP3_DirectoryKeeper`
    - `TRP3_DirectoryKeeper_Archive`
    - `TRP3_DirectoryKeeper_Exchange`
@@ -42,13 +42,17 @@ Play as usual. Open the Directory (Total RP 3 → Directory → Characters) to s
 ### Sharing a directory
 
 The **Import** (left wrench) and **Export** (right wrench) buttons are next to the search button at the bottom of the Directory's Characters tab.
-Importing: with the game closed (or at character selection), put the received file in the same directory as the export: Warcraft\_retail_\WTF\Account\<YOUR ACCOUNT FOLDER>\SavedVariables\TRP3_DirectoryKeeper_Exchange.lua - Log in, open the characters tab and click Import. The game reloads after the import.
-Exporting: click Export, confirm, then reload. The file is stored at: Warcraft\_retail_\WTF\Account\<YOUR ACCOUNT FOLDER>\SavedVariables\TRP3_DirectoryKeeper_Exchange.lua - The game shows this path, and how to find your World of Warcraft folder, after each export/import.
+
+The exchange file is stored at `World of Warcraft\_retail_\WTF\Account\<YOUR ACCOUNT FOLDER>\SavedVariables\TRP3_DirectoryKeeper_Exchange.lua` (`_forever_` instead of `_retail_` on WoW Forever). The game shows this path, and how to find your World of Warcraft folder, after each export or import.
+
+- **Importing:** with the game closed (or at character selection), put the received file in that folder. Log in, open the Characters tab and click **Import**. The game reloads after the import.
+- **Exporting:** click **Export**, confirm, then reload. Send the file to the other player, preferably zipped.
 
 Both players need the same Total RP 3 version. See [docs/SHARING.md](docs/SHARING.md) for what is included, what is skipped, and how received files are checked.
 
 ## Things to know
 
+- **Retail and WoW Forever are separate.** Each game client has its own `WTF` folder, so each keeps its own archive and nothing is shared between them.
 - **Uninstalling** is safe. Total RP 3 keeps its own directory. The archive file (`TRP3_DirectoryKeeper_Archive.lua` in `SavedVariables`) stays on disk until you delete it, and also works as a backup of everyone you have met.
 - **Deleting a profile on a character without Directory Keeper:** it comes back from the archive the next time you play a character with it.
 - **Imported profiles and TRP3's Report button:** an imported profile shows the *exporter's* last-seen date, and Blizzard cannot verify a report about a profile you never received yourself. Report only what you have seen in game.

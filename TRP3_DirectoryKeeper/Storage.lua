@@ -17,8 +17,8 @@ local _, ns = ...
 
 local Serializer = ns.Serializer
 local pairs, ipairs, next, type, tostring, pcall = pairs, ipairs, next, type, tostring, pcall
-local loadstring, setfenv = loadstring, setfenv
-local byte, concat = string.byte, table.concat
+local loadstring, setfenv, issecretvalue = loadstring, setfenv, issecretvalue
+local byte, concat, find = string.byte, table.concat, string.find
 
 local Storage = {}
 ns.Storage = Storage
@@ -74,8 +74,10 @@ local FINGERPRINT = {
 		}, ":")
 	end,
 	character = function(character)
+		-- TRP3 reads the guild from the game, so it can be a secret, which must not be compared.
+		local guild = character.guild
 		return concat({
-			tostring(character.profileID), tostring(character.guild), tostring(character.client),
+			tostring(character.profileID), issecretvalue(guild) and "secret" or tostring(guild), tostring(character.client),
 			tostring(character.clientVersion), tostring(character.extendedVersion), tostring(character.roleplayExperience),
 		}, ":")
 	end,
@@ -109,8 +111,16 @@ end
 
 -- Blocks are written by this addon from the player's own directory, so they are read with
 -- loadstring (fast) in an empty environment. Received exports never go through this path.
+--
+-- Lua 5.1 keeps one constant per function for 0 and -0, so the first zero in a block decides the
+-- sign of every zero in it. Total RP 3 guards its own files against this with TRP3_AbsolutelyZero,
+-- but each block here is compiled on its own. Blocks saved by version 1.0.0 can hold a -0 received
+-- from another player, so those are read with a positive zero in front; new blocks never hold one.
 local function ReadBlock(text)
 	if type(text) ~= "string" then return nil end
+	if find(text, "]=-0,", 1, true) then
+		text = "local _=0;" .. text
+	end
 	local fn = loadstring(text, "TRP3DK_Archive block")
 	if not fn then return nil end
 	setfenv(fn, {})

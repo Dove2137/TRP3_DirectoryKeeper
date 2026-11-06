@@ -17,7 +17,7 @@ assert(dataFile and profileFile and work, "usage: simulate.lua <totalRP3_Data.lu
 
 local ADDON_DIR = "TRP3_DirectoryKeeper"
 local ARCHIVE_FILE = "TRP3_DirectoryKeeper_Archive.lua"
-local TRP3_VARIABLES = { "TRP3_Characters", "TRP3_Colors", "TRP3_Companions", "TRP3_Configuration", "TRP3_Flyway",
+local TRP3_VARIABLES = { "TRP3_AbsolutelyZero", "TRP3_Characters", "TRP3_Colors", "TRP3_Companions", "TRP3_Configuration", "TRP3_Flyway",
 	"TRP3_MatureFilter", "TRP3_Notes", "TRP3_Presets", "TRP3_Profiles", "TRP3_SavedAutomation" }
 local DAY = 86400
 local Check, Count = H.Check, H.Count
@@ -91,7 +91,7 @@ local function Session(label, dir, options)
 
 	-- The game writes every loaded addon's saved variables.
 	t = Clock()
-	H.WriteSavedVariables(dir .. "/totalRP3_Data.lua", env, { "TRP3_Register" })
+	H.WriteSavedVariables(dir .. "/totalRP3_Data.lua", env, { "TRP3_AbsolutelyZero", "TRP3_Register" })
 	H.WriteSavedVariables(dir .. "/totalRP3.lua", env, TRP3_VARIABLES)
 	H.WriteSavedVariables(dir .. "/TRP3_DirectoryKeeper.lua", env, { "TRP3DK_State" })
 	H.WriteSavedVariables(dir .. "/" .. ARCHIVE_FILE, env, { "TRP3DK_Archive" })
@@ -158,7 +158,15 @@ Check(s2.readable, "all files can be read back")
 
 -- Session 3: the player sets TRP3's purge to 30 days.
 local s3 = Session("A3: TRP3 purge set to 30 days", A, { now = NOW + 2 * DAY, purge = 30 * DAY })
-Check(s3.trp3Own < s2.saved, ("TRP3 purged its own directory (%d -> %d profiles)"):format(s2.saved, s3.trp3Own))
+local purgeable = 0
+for _, profile in pairs(s2.env.TRP3_Register.profiles) do
+	if not profile.time or NOW + 2 * DAY - profile.time > 30 * DAY then purgeable = purgeable + 1 end
+end
+if purgeable > 0 then
+	Check(s3.trp3Own < s2.saved, ("TRP3 purged its own directory (%d -> %d profiles)"):format(s2.saved, s3.trp3Own))
+else
+	print("    no profile is old enough for TRP3 to purge") -- a young directory, such as a new game client's
+end
 Check(s3.shown == s2.archive, "everyone is still shown after TRP3's purge (" .. s3.shown .. ")")
 Check(s3.saved == s3.trp3Own, "TRP3's own file keeps only what TRP3 kept after its purge")
 Check(s3.archive == s2.archive, "the archive still holds everyone")
@@ -196,15 +204,17 @@ Check(counts.characters == #selection.characterIDs and counts.profiles == #selec
 	("the export contains every character and the profiles they use (%d characters, %d profiles)"):format(#selection.characterIDs, #selection.profileIDs))
 Check(s5.saved == s4.saved, "exporting does not change TRP3's own file")
 
--- Player B: a small directory of their own (300 profiles taken from A), receives A's export.
+-- Player B: a small directory of their own (at most 300 profiles taken from A, and never more than
+-- half of them, so A's export always has something new), receives A's export.
 do
 	local source = H.NewEnvironment()
 	assert(H.ReadSavedVariables(A .. "/totalRP3_Data.lua", source))
 	local small = { profiles = {}, character = {}, companion = {}, blockList = {} }
+	local takeLimit = math.min(300, math.floor(Count(source.TRP3_Register.profiles) / 2))
 	local taken = 0
 	for characterID, character in pairs(source.TRP3_Register.character) do
 		local profile = character.profileID and source.TRP3_Register.profiles[character.profileID]
-		if profile and taken < 300 and not small.profiles[character.profileID] then
+		if profile and taken < takeLimit and not small.profiles[character.profileID] then
 			small.profiles[character.profileID] = profile
 			for linked in pairs(profile.link or {}) do
 				small.character[linked] = source.TRP3_Register.character[linked]
