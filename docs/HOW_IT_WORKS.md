@@ -23,7 +23,7 @@ Directory Keeper keeps its archive in its own file, from the data-only addon `TR
 | Addon | Saved variable | Contents |
 |---|---|---|
 | `totalRP3_Data` (Total RP 3) | `TRP3_Register` | TRP3's own directory, in TRP3's normal format |
-| `TRP3_DirectoryKeeper` | `TRP3DK_State` | Status and timings of the last logout |
+| `TRP3_DirectoryKeeper` | `TRP3DK_State` | Status and timings of the last logout, and what the archive held at its last save |
 | `TRP3_DirectoryKeeper_Archive` | `TRP3DK_Archive` | The archive: text blocks per section, plus the TRP3 data format, save date and counts |
 | `TRP3_DirectoryKeeper_Exchange` (load on demand) | `TRP3DK_Exchange` | An export, or a received export to import |
 
@@ -37,13 +37,15 @@ Lua 5.1 keeps one constant per function for `0` and `-0`, so the first zero in a
 
 ### Writing only what changed
 
-Rewriting every block at every logout would take over a second for a large archive. So Directory Keeper notes a small *fingerprint* of every entry at login: the last-seen date, version numbers, link count and read flag of profiles; the profile, guild and client of characters; the version numbers and links of companions. At logout only the blocks holding new, deleted or changed entries are written again. All other blocks are saved exactly as they were read. A typical session rewrites a handful of blocks; a session without changes rewrites none.
+Rewriting every block at every logout would take over a second for a large archive. So Directory Keeper notes a small *fingerprint* of every entry at login. It covers every field of the entry: plain values (last-seen date, zone, flags, a character's profile, guild, race, class, client) as they are, and each table inside the entry by its version number and read flag (characteristics, About, At first glance), or by its size when it has no version number (the list of linked characters). At logout only the blocks holding new, deleted or changed entries are written again. All other blocks are saved exactly as they were read. A typical session rewrites a handful of blocks; a session without changes rewrites none.
 
-Every 20 logouts, and whenever the number of blocks no longer suits the archive's size, all blocks are rewritten. That also picks up rare changes no fingerprint covers.
+Every 20 logouts, and whenever the number of blocks no longer suits the archive's size, all blocks are rewritten.
+
+The one change a fingerprint does not show is one inside a table that keeps its version number, or its size. Total RP 3 raises the version whenever it stores new contents, so this does not happen in normal use.
 
 ## Login
 
-1. **`ADDON_LOADED`.** The archive's text blocks are read back into tables, and every entry's fingerprint is noted. At the very first login the archive is empty; it is filled from TRP3's directory at the first logout.
+1. **`ADDON_LOADED`.** The archive's text blocks are read back into tables, and every entry's fingerprint is noted. At the very first login the archive is empty; it is filled from TRP3's directory at the first logout. The archive is also compared with the record of its last save (see [A missing or damaged archive file](#a-missing-or-damaged-archive-file)).
 2. **`PLAYER_LOGIN`.** Total RP 3 starts. It runs its data migrations, reads its directory and runs its login cleanup: it removes relations to unknown profiles, purges by age if purge is on, and unlinks orphaned characters and companions.
 3. **`PLAYER_ENTERING_WORLD`.** Directory Keeper adds the archive to TRP3's directory **in memory**:
    - **Profiles:** archive profiles TRP3 doesn't have are added. When both have a profile, the one with the newer last-seen date (`profile.time`) is used. Profiles without data are skipped (TRP3 deletes those itself).
@@ -71,13 +73,26 @@ Directory Keeper adds the archive *after* TRP3's own cleanup. That way TRP3's pu
    - you have a relation or a note on it (`TRP3_Profiles[*].relation`, `TRP3_Profiles[*].notes`, `TRP3_Notes`).
 
    A profile's characters stay or go with it. An added companion stays while one of its owners stays.
-3. **Write the archive file:** only the changed blocks, together with the TRP3 data format, the date and the counts.
+3. **Write the archive file:** only the changed blocks, together with the TRP3 data format, the date and the counts. The date and counts are also noted in `TRP3DK_State`.
 
 The game then writes all files. TRP3's file contains exactly what TRP3 would have saved without Directory Keeper.
 
 ### Why relations need protecting
 
 At every login, TRP3 deletes relations that point to profiles missing from its directory, and it does that *before* Directory Keeper adds the archive. If a profile you have a relation with were only in the archive, the relation would be lost at the next login. TRP3's own purge protects the same profiles for the same reason.
+
+## A missing or damaged archive file
+
+The game loads a saved-variables file as a whole. If the archive file was cut short or damaged, for example by a crash while the game was writing it, nothing of it is loaded, which looks exactly like a first start. Without a check, the next logout would write a new archive holding only TRP3's current directory in its place.
+
+So at every save Directory Keeper notes the date and the number of entries in `TRP3DK_State`, which the game keeps in a different file. At login the archive is compared with that record. If the archive is empty although one was saved before, or holds fewer than half the profiles, Directory Keeper pauses: nothing is added, and nothing is written at logout.
+
+The game renames a saved-variables file to `.bak` before writing it again. Right after a failed read, `TRP3_DirectoryKeeper_Archive.lua.bak` is therefore the last good copy, and the next logout or reload replaces it. The warning shown at login says so, and explains what to do:
+
+1. Before logging out or reloading, copy `TRP3_DirectoryKeeper_Archive.lua.bak` from the `SavedVariables` folder to a safe place.
+2. Close the game and put the copy back in that folder as `TRP3_DirectoryKeeper_Archive.lua`.
+
+The warning returns at every login until the archive is back, or until you type `/tdk accept` to carry on with the archive as it is (after a reload). Use that when you removed or replaced the archive file on purpose.
 
 ## Failure handling
 
@@ -87,10 +102,13 @@ At every login, TRP3 deletes relations that point to profiles missing from its d
 | Only the code addon is disabled | The archive addon still loads and the game saves its file back unchanged. |
 | Total RP 3 updated its data format (`TRP3_Flyway.currentBuild` differs from the archive's) | Directory Keeper pauses: nothing is added, and the archive is not rewritten. `/tdk` shows the reason. |
 | The archive file was written by a newer Directory Keeper | Directory Keeper pauses and leaves the file alone. |
+| The archive file is missing, empty or much smaller than at its last save | Directory Keeper pauses and shows how to save the game's backup copy. See [A missing or damaged archive file](#a-missing-or-damaged-archive-file). |
 | An archive block can't be read | It is reported in chat and kept in the file untouched, never thrown away. |
 | An entry holds a secret game value (such as a guild name read during combat restrictions) | The value is left out of the archive; the entry and everything else are saved. |
 | Adding the archive fails at login | The error is shown. At logout everything that was added is still taken back out of TRP3's file, and the archive file is not rewritten. |
-| Updating or writing the archive fails at logout | The archive file is left as loaded, so the previous archive is saved unchanged. TRP3's file is still trimmed. |
+| Updating or writing the archive fails at logout | The archive file is left as loaded, so the previous archive is saved unchanged. TRP3's file is still trimmed. The error is shown at the next login. |
+| TRP3's directory holds something that is not an entry (a damaged file) | It is skipped: it is not archived, and it does not stop the update or the trim. |
+| Taking the added entries back out fails at logout | A second, simpler pass removes every added entry except profiles seen this session and profiles you have relations or notes on, so TRP3's file is never saved with the whole archive in it. The error is shown at the next login. |
 | TRP3's own file overflows (purge off, too many profiles met) | The game can't load it, so TRP3 starts empty. The archive still has everyone and still shows them. |
 | Crash or Alt+F4 | The game saves nothing. All files keep their previous, consistent state. |
 
@@ -102,7 +120,7 @@ Measured by the test suite on a real 15,498-profile directory under Lua 5.1:
 |---|---|
 | Reading the archive's text blocks (`ADDON_LOADED`, during the loading screen) | 0.5–0.7 s |
 | Adding the archive to TRP3's directory | 30–45 ms |
-| Logout: update, trim, write changed blocks | ~0.13 s |
+| Logout: update, trim, write changed blocks | 0.15–0.18 s |
 | Logout with a full rewrite (first logout, then every 20 logouts) | 1.1–1.4 s |
 | Export of the whole directory (background, over ~65 frames) | ~1.1 s |
 | Reading an import (background, over ~70 frames) | ~1.2 s |

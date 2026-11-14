@@ -51,6 +51,9 @@ Unit tests on small hand-made directories:
 - serializer round-trips, including tricky text;
 - the parser refusing code and damaged data;
 - merge, update and trim rules, including relation protection and deletions;
+- fingerprints: every kind of change to an entry is written, identical copies are not;
+- entries in TRP3's directory that are not tables, and the fallback for a failed trim;
+- a missing or smaller archive file, played as whole sessions, and `/tdk accept`;
 - import planning: add-only, ignore list, ID checks, date capping;
 - negative zero, secret values and the game client checks.
 

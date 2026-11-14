@@ -128,10 +128,10 @@ function Archive.Merge(directory, archive, blockList, sessionStart, session)
 				characters[characterID] = archived
 				injectedCharacters[characterID] = true
 				rebound[characterID] = profileID
-			elseif current ~= archived and current.profileID ~= profileID then
+			elseif type(current) == "table" and current ~= archived and current.profileID ~= profileID then
 				local currentProfile = current.profileID and profiles[current.profileID]
 				if not currentProfile or ProfileTime(profiles[profileID]) > ProfileTime(currentProfile) then
-					if currentProfile and type(currentProfile.link) == "table" then
+					if type(currentProfile) == "table" and type(currentProfile.link) == "table" then
 						currentProfile.link[characterID] = nil
 					end
 					characters[characterID] = archived
@@ -147,16 +147,16 @@ function Archive.Merge(directory, archive, blockList, sessionStart, session)
 		if type(profile.link) ~= "table" then profile.link = {} end
 		for characterID in pairs(profile.link) do
 			local character = characters[characterID]
-			if not character or character.profileID ~= profileID then
+			if type(character) ~= "table" or character.profileID ~= profileID then
 				profile.link[characterID] = nil
 			end
 		end
 	end
 	for characterID, character in pairs(characters) do
-		local profileID = character.profileID
+		local profileID = type(character) == "table" and character.profileID
 		if profileID and (rebound[characterID] or touchedProfiles[profileID]) then
 			local profile = profiles[profileID]
-			if profile then
+			if type(profile) == "table" then
 				if type(profile.link) ~= "table" then profile.link = {} end
 				profile.link[characterID] = 1
 			end
@@ -182,7 +182,8 @@ end
 -- Logout: update the archive, then hand TRP3 back its own directory
 ---------------------------------------------------------------------------
 
---- Brings the archive up to date with TRP3's directory.
+--- Brings the archive up to date with TRP3's directory. Only tables are taken over: anything else
+--- in TRP3's directory is not an entry.
 function Archive.Update(archive, directory, session)
 	local profiles, characters, companions = directory.profiles, directory.character, directory.companion
 	local archivedProfiles, archivedCharacters, archivedCompanions = archive.profiles, archive.character, archive.companion
@@ -201,7 +202,8 @@ function Archive.Update(archive, directory, session)
 	-- Profiles: keep whichever was seen last.
 	for profileID, profile in pairs(profiles) do
 		local archived = archivedProfiles[profileID]
-		if archived ~= profile and (archived == nil or ProfileTime(profile) >= ProfileTime(archived)) then
+		if type(profile) == "table" and archived ~= profile
+			and (archived == nil or ProfileTime(profile) >= ProfileTime(archived)) then
 			archivedProfiles[profileID] = profile
 		end
 	end
@@ -211,7 +213,7 @@ function Archive.Update(archive, directory, session)
 	-- profile is deleted, its characters lose their profileID), so decide on content, not identity.
 	for characterID, character in pairs(characters) do
 		local archived = archivedCharacters[characterID]
-		if not character.profileID then
+		if type(character) ~= "table" or not character.profileID then
 			-- TRP3 only keeps characters without a profile for its ignore list; the archive has no use for them.
 			archivedCharacters[characterID] = nil
 		elseif archived ~= character and (archived == nil or not archived.profileID or archived.profileID == character.profileID
@@ -222,12 +224,15 @@ function Archive.Update(archive, directory, session)
 
 	-- Companions have no date; TRP3's current version is the latest.
 	for companionID, companion in pairs(companions) do
-		archivedCompanions[companionID] = companion
+		if type(companion) == "table" then
+			archivedCompanions[companionID] = companion
+		end
 	end
 end
 
 --- Takes the entries that were only added for display back out of TRP3's directory.
 --- Kept: TRP3's own entries, anything seen or changed this session, and protected profiles.
+--- This must not fail whatever TRP3's directory holds, so every entry's type is checked before use.
 function Archive.Trim(directory, session, protected)
 	local profiles, characters, companions = directory.profiles, directory.character, directory.companion
 	local injectedProfiles, importedProfiles = session.injectedProfiles, session.importedProfiles
@@ -244,7 +249,7 @@ function Archive.Trim(directory, session, protected)
 	end
 	-- A profile that one of TRP3's own characters points to stays with that character.
 	for characterID, character in pairs(characters) do
-		local profileID = character.profileID
+		local profileID = type(character) == "table" and character.profileID
 		if profileID and not injectedCharacters[characterID] and profiles[profileID] then
 			keep[profileID] = true
 		end
@@ -255,8 +260,9 @@ function Archive.Trim(directory, session, protected)
 	-- Characters stay or go together with their profile.
 	for characterID, character in pairs(characters) do
 		local stays
-		if character.profileID and profiles[character.profileID] then
-			stays = keep[character.profileID]
+		local profileID = type(character) == "table" and character.profileID
+		if profileID and profiles[profileID] then
+			stays = keep[profileID]
 		else
 			stays = not injectedCharacters[characterID]
 		end
@@ -275,7 +281,7 @@ function Archive.Trim(directory, session, protected)
 	for companionID, companion in pairs(companions) do
 		if injectedCompanions[companionID] then
 			local stays = false
-			if type(companion.links) == "table" then
+			if type(companion) == "table" and type(companion.links) == "table" then
 				for companionFullID in pairs(companion.links) do
 					local owner = Archive.CompanionOwner(companionFullID)
 					if owner and characters[owner] then
@@ -288,6 +294,43 @@ function Archive.Trim(directory, session, protected)
 				companions[companionID] = nil
 				removed.companions = removed.companions + 1
 			end
+		end
+	end
+	return removed
+end
+
+--- Used when Trim fails: takes the added entries back out of TRP3's directory in the simplest way
+--- there is, so that TRP3's own file is never saved with the whole archive in it. Of the added
+--- profiles only the protected ones and those seen this session stay; an added character stays
+--- while its profile does, and added companions go.
+function Archive.RemoveInjected(directory, session, protected)
+	local profiles, characters, companions = directory.profiles, directory.character, directory.companion
+	local importedProfiles = session.importedProfiles or {}
+	local sessionStart = session.sessionStart or math.huge
+	protected = protected or {}
+	local removed = { profiles = 0, characters = 0, companions = 0 }
+
+	for profileID in pairs(session.injectedProfiles or {}) do
+		if profiles[profileID] ~= nil and not protected[profileID]
+			and (importedProfiles[profileID] or ProfileTime(profiles[profileID]) < sessionStart) then
+			profiles[profileID] = nil
+			removed.profiles = removed.profiles + 1
+		end
+	end
+	for characterID in pairs(session.injectedCharacters or {}) do
+		local character = characters[characterID]
+		if character ~= nil then
+			local profileID = type(character) == "table" and character.profileID
+			if not profileID or profiles[profileID] == nil then
+				characters[characterID] = nil
+				removed.characters = removed.characters + 1
+			end
+		end
+	end
+	for companionID in pairs(session.injectedCompanions or {}) do
+		if companions[companionID] ~= nil then
+			companions[companionID] = nil
+			removed.companions = removed.companions + 1
 		end
 	end
 	return removed

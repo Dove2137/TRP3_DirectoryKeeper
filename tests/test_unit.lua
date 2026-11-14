@@ -356,5 +356,177 @@ Archive.Trim(mine, importSession, {})
 Check(mine.profiles.P_NEW1 == nil and importArchive.profiles.P_NEW1 ~= nil, "imported entries are not saved into TRP3's own file")
 Check(mine.character["Alt-Realm"] ~= nil, "a character linked to my own profile stays in TRP3's file")
 
+---------------------------------------------------------------------------
+print("Fingerprints")
+---------------------------------------------------------------------------
+
+-- Any change to an entry's own fields must reach the file, also for entries only the archive holds.
+local function SaveAfter(change)
+	local fpArchive, fpStore = Storage.Load(first)
+	local fpSnapshot = Storage.Snapshot(fpArchive)
+	change(fpArchive)
+	local fpSaved, fpSummary = Storage.Save(fpArchive, fpStore, fpSnapshot, INFO)
+	return (Storage.Load(fpSaved)), fpSummary
+end
+
+local flagged, flaggedSummary = SaveAfter(function(a) a.profiles.P7.hasMatureContent = true end)
+Check(flagged.profiles.P7.hasMatureContent == true and flaggedSummary.rewritten == 1, "a flag set on a profile is saved")
+local zoned = SaveAfter(function(a) a.profiles.P7.zone = "Stormwind" end)
+Check(zoned.profiles.P7.zone == "Stormwind", "a profile field without a version number is saved")
+local raced, racedSummary = SaveAfter(function(a)
+	a.character["Char7-Realm"].race = "Orc"
+	a.character["Char8-Realm"].classID = 3
+end)
+Check(raced.character["Char7-Realm"].race == "Orc" and raced.character["Char8-Realm"].classID == 3 and racedSummary.rewritten <= 2,
+	"character fields such as race and class are saved")
+local cleared = SaveAfter(function(a) a.character["Char7-Realm"].guild = nil end)
+Check(cleared.character["Char7-Realm"].guild == nil, "a removed field is saved")
+local versioned = SaveAfter(function(a) a.companion.C7.data.v = 2; a.companion.C7.data.NA = "Renamed" end)
+Check(versioned.companion.C7.data.NA == "Renamed", "a new version of a table inside an entry is saved")
+
+-- TRP3's own copy of an entry is a different table with the same contents; that is not a change.
+local _, copiedSummary = SaveAfter(function(a)
+	for _, section in ipairs(ns.SECTIONS) do
+		for key, entry in pairs(a[section]) do
+			local keys, copy = {}, {}
+			for field in pairs(entry) do keys[#keys + 1] = field end
+			for i = #keys, 1, -1 do copy[keys[i]] = entry[keys[i]] end -- fields added in another order
+			a[section][key] = copy
+		end
+	end
+end)
+Check(copiedSummary.rewritten == 0, "identical copies of every entry rewrite no block")
+
+---------------------------------------------------------------------------
+print("Malformed entries in TRP3's directory")
+---------------------------------------------------------------------------
+
+local function BrokenDirectory()
+	local directory = {
+		profiles = { P_OWN = Profile("Own", NOW - 3600, "Own-Realm"), P_JUNK = 5 },
+		character = { ["Own-Realm"] = { profileID = "P_OWN" }, ["Junk-Realm"] = 1, ["Junk2-Realm"] = "x" },
+		companion = { C_JUNK = true },
+		blockList = {},
+	}
+	local stored = {
+		profiles = { P_OLD = Profile("Old friend", OLD, "Old-Realm"), P_SEEN = Profile("Met again", OLD, "Seen-Realm") },
+		character = { ["Old-Realm"] = { profileID = "P_OLD" }, ["Seen-Realm"] = { profileID = "P_SEEN" }, ["Junk-Realm"] = { profileID = "P_OLD" } },
+		companion = { C_OLD = { data = { NA = "Pet" }, PE = {}, links = { ["Old-Realm_Pet"] = 1 } } },
+	}
+	return directory, stored
+end
+
+local broken, brokenArchive = BrokenDirectory()
+local brokenMerged, brokenSession = pcall(Archive.Merge, broken, brokenArchive, broken.blockList, NOW, {})
+Check(brokenMerged and broken.profiles.P_OLD ~= nil, "merging works around entries that are not tables")
+broken.profiles.P_SEEN.time = NOW + 5
+Check(pcall(Archive.Update, brokenArchive, broken, brokenSession), "updating the archive works around them")
+Check(brokenArchive.profiles.P_JUNK == nil and brokenArchive.character["Junk2-Realm"] == nil and brokenArchive.companion.C_JUNK == nil,
+	"they are not taken into the archive")
+Check(pcall(Storage.Save, brokenArchive, select(2, Storage.Load(nil)), Storage.Snapshot(Archive.NewDirectory()), INFO),
+	"the archive can still be saved")
+local brokenTrimmed = pcall(Archive.Trim, broken, brokenSession, {})
+Check(brokenTrimmed and broken.profiles.P_OLD == nil and broken.character["Old-Realm"] == nil and broken.companion.C_OLD == nil,
+	"trimming works around them and takes the archive's entries back out")
+Check(broken.profiles.P_SEEN ~= nil and broken.profiles.P_OWN ~= nil and broken.profiles.P_JUNK == 5 and broken.character["Junk-Realm"] == 1,
+	"TRP3's own entries stay as they were, whatever they are")
+
+-- The fallback used when trimming fails anyway.
+local fallback, fallbackArchive = BrokenDirectory()
+local fallbackSession = Archive.Merge(fallback, fallbackArchive, fallback.blockList, NOW, {})
+fallback.profiles.P_SEEN.time = NOW + 5
+fallbackArchive.profiles.P_REL = Profile("Has a relation", OLD, "Rel-Realm")
+fallbackArchive.character["Rel-Realm"] = { profileID = "P_REL" }
+fallback.profiles.P_REL, fallback.character["Rel-Realm"] = fallbackArchive.profiles.P_REL, fallbackArchive.character["Rel-Realm"]
+fallbackSession.injectedProfiles.P_REL, fallbackSession.injectedCharacters["Rel-Realm"] = true, true
+local fallbackRemoved = Archive.RemoveInjected(fallback, fallbackSession, { P_REL = true })
+Check(fallback.profiles.P_OLD == nil and fallback.character["Old-Realm"] == nil and fallback.companion.C_OLD == nil,
+	"the fallback takes the archive's entries back out")
+Check(fallback.profiles.P_SEEN ~= nil and fallback.character["Seen-Realm"] ~= nil, "the fallback keeps profiles seen this session")
+Check(fallback.profiles.P_REL ~= nil and fallback.character["Rel-Realm"] ~= nil, "the fallback keeps profiles with relations")
+Check(fallback.profiles.P_OWN ~= nil and fallback.character["Own-Realm"] ~= nil and fallback.profiles.P_JUNK == 5,
+	"the fallback leaves TRP3's own entries alone")
+Check(fallbackRemoved.profiles == 1 and fallbackRemoved.characters == 1 and fallbackRemoved.companions == 1, "the fallback reports what it removed")
+
+---------------------------------------------------------------------------
+print("A missing or smaller archive file")
+---------------------------------------------------------------------------
+
+Check(Storage.CheckAgainstLastSave(nil, Archive.NewDirectory(), nil) == nil, "a first start is not a problem")
+Check(Storage.CheckAgainstLastSave(nil, Archive.NewDirectory(), { profiles = 0 }) == nil, "an archive that was empty may still be empty")
+Check(Storage.CheckAgainstLastSave(nil, Archive.NewDirectory(), { profiles = 2000 }) == "missing", "a missing archive is noticed")
+Check(Storage.CheckAgainstLastSave({}, Archive.NewDirectory(), { profiles = 2000 }) == "missing", "an empty archive file is noticed")
+Check(Storage.CheckAgainstLastSave(first, loaded, { profiles = 2000 }) == nil, "the archive that was saved is accepted")
+Check(Storage.CheckAgainstLastSave(first, loaded, { profiles = 3500 }) == nil, "an older copy with most of the profiles is accepted")
+Check(Storage.CheckAgainstLastSave(first, loaded, { profiles = 4001 }) == "smaller", "an archive with fewer than half the profiles is noticed")
+
+-- Whole sessions: saved variables are copied between them, as saving and loading separates them.
+local function Copy(value)
+	if type(value) ~= "table" then return value end
+	local copy = {}
+	for k, v in pairs(value) do copy[k] = Copy(v) end
+	return copy
+end
+
+local function Session(state, now, during)
+	local sessionEnv = H.NewEnvironment()
+	sessionEnv.__now = now
+	sessionEnv.TRP3_Register = Copy(state.register)
+	sessionEnv.TRP3_Flyway = { currentBuild = 25 }
+	sessionEnv.TRP3_Profiles, sessionEnv.TRP3_Notes = {}, {}
+	sessionEnv.TRP3DK_Archive, sessionEnv.TRP3DK_State = Copy(state.archive), Copy(state.keeperState)
+	local sessionNs = H.LoadAddon(sessionEnv, "TRP3_DirectoryKeeper")
+	H.FireEvent(sessionEnv, "ADDON_LOADED", "TRP3_DirectoryKeeper")
+	H.FireEvent(sessionEnv, "PLAYER_ENTERING_WORLD")
+	local result = { shown = H.Count(sessionEnv.TRP3_Register.profiles), pauseReason = sessionNs.status.pauseReason }
+	if during then during(sessionEnv, sessionNs) end
+	H.FireEvent(sessionEnv, "PLAYER_LOGOUT")
+	result.register, result.archive, result.keeperState = sessionEnv.TRP3_Register, sessionEnv.TRP3DK_Archive, sessionEnv.TRP3DK_State
+	result.chat, result.popups = table.concat(sessionEnv.__chat, "\n"), sessionEnv.__popups
+	return result
+end
+
+local function Directory(count)
+	local directory = { profiles = {}, character = {}, companion = {}, blockList = {} }
+	for i = 1, count do
+		directory.profiles["P" .. i] = Profile("Player " .. i, NOW, "Char" .. i .. "-Realm")
+		directory.character["Char" .. i .. "-Realm"] = { profileID = "P" .. i }
+	end
+	return directory
+end
+
+local s1 = Session({ register = Directory(50) }, NOW + 60)
+Check(s1.archive.counts.profiles == 50 and s1.keeperState.archive.profiles == 50 and s1.keeperState.archive.savedAt == s1.archive.savedAt,
+	"what the archive holds is recorded in the addon's own file at every save")
+
+local s2 = Session({ register = Directory(2), archive = nil, keeperState = s1.keeperState }, NOW + 20 * 86400)
+Check(s2.pauseReason ~= nil and s2.archive == nil, "when the archive file was not read, the archive is paused and nothing is written in its place")
+Check(s2.chat:find("Archive.lua.bak", 1, true) and #s2.popups == 1 and s2.popups[1].text:find("Do not log out", 1, true),
+	"the player is told to save the game's backup copy before logging out")
+Check(s2.keeperState.archive.profiles == 50 and s2.shown == 2, "the record is kept, so the warning comes back until it is settled")
+
+local s3 = Session({ register = Directory(2), archive = s1.archive, keeperState = s2.keeperState }, NOW + 21 * 86400)
+Check(s3.pauseReason == nil and s3.shown == 50 and s3.archive.counts.profiles == 50, "with the archive file restored, everything carries on")
+
+local s4 = Session({ register = Directory(2), archive = nil, keeperState = s1.keeperState }, NOW + 20 * 86400, function(sessionEnv)
+	H.Slash(sessionEnv, "accept")
+end)
+local s5 = Session({ register = s4.register, archive = s4.archive, keeperState = s4.keeperState }, NOW + 21 * 86400)
+Check(s4.keeperState.archive == nil and s5.pauseReason == nil and s5.archive.counts.profiles == 2 and s5.keeperState.archive.profiles == 2,
+	"/tdk accept starts again from what is there")
+
+local sOld = Session({ register = Directory(2), archive = s1.archive, keeperState = { lastLogout = s1.keeperState.lastLogout } }, NOW + 86400)
+Check(sOld.pauseReason == nil and sOld.shown == 50, "an archive from before the record existed is used as it is")
+
+-- A logout where TRP3's directory holds something the trim cannot handle still hands TRP3 its own directory back.
+local s6 = Session({ register = Directory(0), archive = s1.archive, keeperState = s1.keeperState }, NOW + 20 * 86400, function(_, sessionNs)
+	sessionNs.Archive.Trim = function() error("trim failed") end
+end)
+Check(H.Count(s6.register.profiles) == 0 and s6.keeperState.lastLogout.trimFallback == true and s6.keeperState.lastLogout.trimmed == true,
+	"if trimming fails, the archive's entries are still taken out of TRP3's directory")
+Check(s6.archive.counts.profiles == 50, "and the archive is still saved")
+local s7 = Session({ register = s6.register, archive = s6.archive, keeperState = s6.keeperState }, NOW + 21 * 86400)
+Check(s7.chat:find("trim failed", 1, true) ~= nil, "a failure at logout is reported at the next login")
+
 print(H.Failures() == 0 and "\nAll unit tests passed." or ("\n" .. H.Failures() .. " unit test(s) FAILED."))
 os.exit(H.Failures() == 0 and 0 or 1)

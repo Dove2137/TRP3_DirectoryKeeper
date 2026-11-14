@@ -10,8 +10,7 @@
 -- At login every block is read back into tables, and a fingerprint of every entry is noted. At
 -- logout only the blocks holding new, deleted or changed entries are written again; all other
 -- blocks are saved exactly as they were read. Every FULL_WRITE_EVERY logouts, and whenever the
--- number of blocks no longer suits the archive's size, all blocks are rewritten, which also picks
--- up the rare change no fingerprint covers (such as an About page's read flag).
+-- number of blocks no longer suits the archive's size, all blocks are rewritten.
 
 local _, ns = ...
 
@@ -61,43 +60,70 @@ local function CountKeys(t)
 	return n
 end
 
-local function Version(t)
-	return type(t) == "table" and tostring(t.v) or "-"
-end
+--- The fingerprint of an entry covers every field of the entry itself: plain values as they are,
+--- and each table inside it by its version number and read flag (characteristics, about, ...), or by
+--- its size when it has no version (link, mspver, a companion's links). TRP3 raises a table's
+--- version whenever its contents change, so the only change this does not show is one inside such
+--- a table that keeps its version, or its size.
+--
+--- Two tables with the same contents can list their fields in a different order. So each field name
+--- gets a number the first time it is seen, and a fingerprint lists its fields by that number.
+--- Fingerprints are therefore only comparable within one session, which is all they are used for.
+local fieldNumbers, fieldLabels, fieldCount = {}, {}, 0
+local fieldTexts, parts = {}, {}
 
-local FINGERPRINT = {
-	profiles = function(profile)
-		local about = type(profile.about) == "table" and profile.about or nil
-		return concat({
-			tostring(profile.time), CountKeys(profile.link), Version(profile.characteristics), Version(about),
-			Version(profile.misc), Version(profile.character), tostring(about and about.read), CountKeys(profile.mspver),
-		}, ":")
-	end,
-	character = function(character)
-		-- TRP3 reads the guild from the game, so it can be a secret, which must not be compared.
-		local guild = character.guild
-		return concat({
-			tostring(character.profileID), issecretvalue(guild) and "secret" or tostring(guild), tostring(character.client),
-			tostring(character.clientVersion), tostring(character.extendedVersion), tostring(character.roleplayExperience),
-		}, ":")
-	end,
-	companion = function(companion)
-		local data = type(companion.data) == "table" and companion.data or nil
-		return concat({
-			Version(data), Version(companion.PE), CountKeys(companion.links), tostring(data and data.read),
-		}, ":")
-	end,
-}
+local function Fingerprint(entry)
+	for key, value in pairs(entry) do
+		local text
+		-- TRP3 reads some values (such as the guild) from the game, so they can be secrets, which
+		-- must not be read or compared.
+		if issecretvalue(value) then
+			text = "secret"
+		else
+			local valueType = type(value)
+			if valueType == "table" then
+				local version = value.v
+				if version ~= nil then
+					text = value.read == nil and tostring(version) or tostring(version) .. "/" .. tostring(value.read)
+				else
+					text = "#" .. CountKeys(value)
+				end
+			elseif valueType == "string" or valueType == "number" or valueType == "boolean" then
+				text = tostring(value)
+			end
+		end
+		if text then -- anything else is never saved (see Serializer.lua)
+			local number = fieldNumbers[key]
+			if not number then
+				fieldCount = fieldCount + 1
+				number = fieldCount
+				fieldNumbers[key] = number
+				fieldLabels[number] = tostring(number)
+			end
+			fieldTexts[number] = text
+		end
+	end
+	local n = 0
+	for number = 1, fieldCount do
+		local text = fieldTexts[number]
+		if text then
+			fieldTexts[number] = nil
+			parts[n + 1], parts[n + 2] = fieldLabels[number], text
+			n = n + 2
+		end
+	end
+	return concat(parts, "\n", 1, n)
+end
+Storage.Fingerprint = Fingerprint
 
 --- Notes every entry and its fingerprint, to find what changed at logout.
 function Storage.Snapshot(archive)
 	local snapshot = { entries = {}, fingerprints = {} }
 	for _, section in ipairs(ns.SECTIONS) do
 		local entries, fingerprints = {}, {}
-		local fingerprint = FINGERPRINT[section]
 		for key, entry in pairs(archive[section]) do
 			entries[key] = entry
-			fingerprints[key] = fingerprint(entry)
+			fingerprints[key] = Fingerprint(entry)
 		end
 		snapshot.entries[section] = entries
 		snapshot.fingerprints[section] = fingerprints
@@ -189,6 +215,25 @@ function Storage.Load(saved)
 	return archive, store
 end
 
+--- Compares the archive that was read with the record of the last successful save, which is kept
+--- in a different file (TRP3DK_State.archive, see Main.lua). A file that was cut short or damaged
+--- does not load at all, and would otherwise look exactly like a first start, after which the next
+--- logout would write a new, nearly empty archive in its place.
+--- Returns "missing" when nothing was read although an archive was saved before, "smaller" when
+--- fewer than half of the saved profiles were read, or nil when the archive looks right.
+function Storage.CheckAgainstLastSave(saved, archive, lastSave)
+	if type(lastSave) ~= "table" or type(lastSave.profiles) ~= "number" or lastSave.profiles <= 0 then
+		return nil
+	end
+	if type(saved) ~= "table" or next(saved) == nil then
+		return "missing"
+	end
+	if CountKeys(archive.profiles) * 2 < lastSave.profiles then
+		return "smaller"
+	end
+	return nil
+end
+
 ---------------------------------------------------------------------------
 -- Writing
 ---------------------------------------------------------------------------
@@ -207,14 +252,14 @@ local function WriteAllBlocks(entries, blockCount)
 end
 
 --- Writes only the blocks of a section that hold new, deleted or changed entries.
-local function WriteChangedBlocks(entries, record, snapshotEntries, snapshotFingerprints, fingerprint)
+local function WriteChangedBlocks(entries, record, snapshotEntries, snapshotFingerprints)
 	local count, keys, blockOf = record.count, record.keys, record.blockOf
 	local changed = {}
 
 	-- Compare fingerprints, not tables: with TRP3's purge off, the archive takes over TRP3's own copy
 	-- of every entry at logout, which is a different table with the same contents.
 	for key, entry in pairs(entries) do
-		if snapshotFingerprints[key] ~= fingerprint(entry) then
+		if snapshotFingerprints[key] ~= Fingerprint(entry) then
 			local block = blockOf[key]
 			if not block then
 				block = Storage.BlockOf(key, count)
@@ -277,7 +322,7 @@ function Storage.Save(archive, store, snapshot, info)
 		else
 			local rewritten
 			texts, rewritten = WriteChangedBlocks(entries, record, snapshot.entries[section],
-				snapshot.fingerprints[section], FINGERPRINT[section])
+				snapshot.fingerprints[section])
 			summary.rewritten = summary.rewritten + rewritten
 			allFull = false
 		end

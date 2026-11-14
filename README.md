@@ -18,7 +18,7 @@ Total RP 3 stores everyone you meet in its *Directory*. By default it removes pr
 ## Requirements
 
 - World of Warcraft Retail, patch 12.1.5 (Interface 120105), or WoW Forever, patch 1.60.1 (Interface 16001)
-- Total RP 3 3.5.4
+- Total RP 3 3.5.5 (3.5.4 also works)
 
 ## Installation
 
@@ -38,6 +38,7 @@ Play as usual. Open the Directory (Total RP 3 → Directory → Characters) to s
 | `/tdk` | Status: what TRP3 shows, archive size, TRP3's own file usage, timings |
 | `/tdk export` | Same as the Export button |
 | `/tdk import` | Same as the Import button |
+| `/tdk accept` | Only after a warning that the archive file is missing or much smaller than at its last save: carry on with the archive as it is now |
 
 ### Sharing a directory
 
@@ -57,6 +58,7 @@ Both players need the same Total RP 3 version. See [docs/SHARING.md](docs/SHARIN
 - **Deleting a profile on a character without Directory Keeper:** it comes back from the archive the next time you play a character with it.
 - **Imported profiles and TRP3's Report button:** an imported profile shows the *exporter's* last-seen date, and Blizzard cannot verify a report about a profile you never received yourself. Report only what you have seen in game.
 - **Companion details:** pets and mounts from the archive may miss some tooltip details until you meet their owner again.
+- **If the archive file is missing or damaged,** Directory Keeper notices at login, pauses, and tells you how to save the game's backup copy (`TRP3_DirectoryKeeper_Archive.lua.bak`) before it is replaced at the next logout or reload.
 - **After a Total RP 3 update that changes its data format,** Directory Keeper pauses and leaves the archive untouched until it is updated too. `/tdk` shows why.
 
 ## How it works

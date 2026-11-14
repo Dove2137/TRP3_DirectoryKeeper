@@ -2,7 +2,7 @@
 ## Title: TRP3 Directory Keeper: Archive
 ## Notes: The Directory Keeper archive: every directory profile you have ever met, in one file. Contains no code; keep it enabled together with TRP3 Directory Keeper.
 ## Author: Kanedaw
-## Version: 1.1.0
+## Version: 1.1.1
 ## IconTexture: 132918
 ## X-License: Apache-2.0
 ## Group: TRP3_DirectoryKeeper

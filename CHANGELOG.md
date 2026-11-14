@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 (2026-11-13)
+
+- **A missing or damaged archive file is noticed.** If the game could not read the archive file, Directory Keeper used to treat that as a first start and wrote a new, nearly empty archive at logout. It now compares the archive with a record of its last save, kept in its own file. If the archive is missing or holds fewer than half the profiles, it pauses, writes nothing, and explains how to save the game's backup copy (`TRP3_DirectoryKeeper_Archive.lua.bak`) before logging out. `/tdk accept` carries on with the archive as it is.
+- **Every change to an entry is saved.** The fingerprints that decide which archive blocks are rewritten now cover every field of an entry. Before, a change to a field outside the fingerprint was not written: a mature-content flag set on a profile only the archive holds was lost at logout, and a character's race, class, gender or faction could stay outdated in the archive.
+- **Logout is safer when Total RP 3's directory is damaged.** An entry that is not a table no longer stops the archive update or the trim. If taking the archive's entries back out of TRP3's directory fails anyway, a second, simpler pass removes them, so TRP3's own file is never saved with the whole archive in it.
+- A failure at logout is now shown in chat at the next login.
+- **Works with Total RP 3 3.5.5.** Its data format has not changed.
+
 ## 1.1.0 (2026-11-06)
 
 - **WoW Forever support.** The addon now loads on WoW Forever as well as Retail. Each game client keeps its own archive, and the export and import instructions in game show the right folder.
